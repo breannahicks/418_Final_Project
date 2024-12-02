@@ -188,6 +188,9 @@ Here’s how mine turned out:
 
 Now we can move into cleaning up our fire data which should be a bit quicker. Here, we are adjusting the format of our data, clipping it to our dates and boundary, and removing any NA values that may cause errors in calculations.
 ```
+# Open BC boundary for clipping
+clippingbound <- st_read("CNCNSSDVS1_polygon.shp")
+
 # Load your point data (make sure to adjust the path). Here we use a wildfire dataset from the BC Data Catoluge called H_FIRE_PNT_point and our BC Boundary file.
 H_FIRE_PNT_point <- st_read("H_FIRE_PNT_point.shp")
 
@@ -208,10 +211,10 @@ subset_fire_data <- subset_fire_data %>%
   filter(!is.na(SIZE_HA))
 
 # Clip fire data to the BC boundary
-final_fire_data <- st_intersection(subset_fire_data, prov_polygon)
+final_fire_data <- st_intersection(subset_fire_data, clippingbound)
 
-# Check for rows with NA values in any attribute column
-na_rows <- final_fire_data[!complete.cases(final_fire_data), ]
+# Save as shapefile
+st_write(final_fire_data, "final_fire_data.shp")
 ```
 ### Examining Wildfire Descriptive Satistics
 It’s important to be able to have some general statements that we can use to describe our climate driven event. We can gather these by performing descriptive and spatial descriptive statistics in our cleaned fire data. Here, we will be looking at the mean, median, and mean centre of our dataset.
@@ -219,6 +222,14 @@ It’s important to be able to have some general statements that we can use to d
 #Descriptive stats on fire data: mean and median
 mean_fire_size <- mean(final_fire_data$SIZE_HA)
 median_fire_size <- median(final_fire_data$SIZE_HA) #most frequent fire size
+
+#Create dataframe for display in table
+statstable <- data.frame(Variable = c("Fire Size (HA)"),
+                   Mean = c(round(mean_fire_size,2)),
+                   Median = c(round(median_fire_size,2)))
+
+#Produce table
+kable(statstable, caption = paste0("Descriptive statistics for Fire Size, 2004-2024, British Columbia"))
 
 #Spatial descriptive stats on fire data: mean center
 # Calculate the mean center (centroid) of the final fire data
@@ -236,14 +247,16 @@ ggplot() +
   # Plot the clipped fire data points
   geom_sf(data = final_fire_data, color = "red", size = 1, alpha = 0.5) +
   
-  # Add the mean center (as a large point)
+  # Add the mean center (as a large blue point)
   geom_sf(data = mean_center, color = "blue", size = 3, shape = 21, fill = "yellow") +
   
   # Add title and labels
   labs(title = "Fire Data in BC 2004-2024 with Mean Center",
        subtitle = "(Mean center of fire points in BC)") +
   theme_minimal()
+
 ```
+![image](https://github.com/user-attachments/assets/c927c5c1-799f-4dae-9634-3039d970d0f5)
 
 ![mean center](https://github.com/user-attachments/assets/2c9cb8e8-4dff-4450-8b08-893bac330c43)
 
