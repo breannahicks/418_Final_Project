@@ -175,14 +175,45 @@ ggplot() +
   geom_sf(data = final_climate_data, aes(color = MAX_TEMP), size = 2) + 
   scale_color_gradient(low = "blue", high = "red") + # Adjust color gradient as needed
   theme_minimal() +
-  labs(title = "Map of Climate Data Points in British Columbia",
-       subtitle = "Overlayed on BC Boundary",
+  labs(title = "Map of Max Average Temp Climate Data Points",
+       subtitle = "in British Columbia 2004-2024 June-August",
        x = "Longitude",  # Use Longitude for x-axis
        y = "Latitude",   # Use Latitude for y-axis
        color = "Temperature (°C)") + # Label for color legend
   theme(legend.position = "bottom")
 ```
 Here’s how mine turned out:
+
+![Climate Data Points Map](https://github.com/user-attachments/assets/5b33a1ca-148d-416a-aec6-d089c11a2278)
+
+Now we can move into cleaning up our fire data which should be a bit quicker. Here, we are adjusting the format of our data, clipping it to our dates and boundary, and removing any NA values that may cause errors in calculations.
+```
+# Load your point data (make sure to adjust the path). Here we use a wildfire dataset from the BC Data Catoluge called H_FIRE_PNT_point and our BC Boundary file.
+H_FIRE_PNT_point <- st_read("H_FIRE_PNT_point.shp")
+
+# Convert the 'FIRE_DATE' column to POSIXct
+H_FIRE_PNT_point$IGN_DATE <- ymd_hms(as.character(H_FIRE_PNT_point$IGN_DATE)) 
+
+# Remove rows with NA values in the FIRE_DATE column
+H_FIRE_PNT_point <- H_FIRE_PNT_point %>%
+  filter(!is.na(IGN_DATE))
+
+# Subset the data for years 2004-2024 and months June-August
+subset_fire_data <- H_FIRE_PNT_point %>%
+  filter(year(IGN_DATE) >= 2004 & year(IGN_DATE) <= 2024,  # Filter for years 2004-2024
+         month(IGN_DATE) %in% 6:8)  # Filter for June, July, August
+
+# Remove rows where SIZE_HA is NA
+subset_fire_data <- subset_fire_data %>%
+  filter(!is.na(SIZE_HA))
+
+# Clip fire data to the BC boundary
+final_fire_data <- st_intersection(subset_fire_data, prov_polygon)
+
+# Check for rows with NA values in any attribute column
+na_rows <- final_fire_data[!complete.cases(final_fire_data), ]
+```
+### Examining Wildfire Descriptive Satistics
 
 
 ### Evaluating Spatial Distribution of Wildfires 
@@ -193,6 +224,5 @@ Here’s how mine turned out:
 
 ### Determinging if Temperature Explains Wildfires 
 
-## Results
 
 ## Discussion
