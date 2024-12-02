@@ -236,7 +236,7 @@ ggplot() +
   # Plot the clipped fire data points
   geom_sf(data = final_fire_data, color = "red", size = 1, alpha = 0.5) +
   
-  # Add the mean center (as a large blue point)
+  # Add the mean center (as a large point)
   geom_sf(data = mean_center, color = "blue", size = 3, shape = 21, fill = "yellow") +
   
   # Add title and labels
@@ -244,6 +244,8 @@ ggplot() +
        subtitle = "(Mean center of fire points in BC)") +
   theme_minimal()
 ```
+
+![mean center](https://github.com/user-attachments/assets/2c9cb8e8-4dff-4450-8b08-893bac330c43)
 
 
 
@@ -421,6 +423,15 @@ final_data_df <- st_drop_geometry(final_data)
 # Write as CSV
 write.csv(final_data_df, "final_data.csv", row.names = FALSE)
 ```
+Now we can look at our OLS to understand the correlation of our two variables. Mapping out OLS will show us where temperature is explaining wildfires versus where it is not on the model. We will do this by mapping the residuals. A larger residual means that a given point is further away from our regression line and therefore, our independent variable (temperature) doesn't explain much about our dependent variable (wildfires). 
+
+Running the following code will show us a map of our residuals:
+
+```
+code
+```
+Result
+
 
 
 ## Discussion
