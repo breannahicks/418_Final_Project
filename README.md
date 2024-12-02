@@ -163,7 +163,7 @@ If you'd like to map your final climate data against your study area to visually
 ```
 # Load the shapefiles
 final_climate_data <- st_read("final_climate_data.shp")
-BC <- st_read <- st_read("BC.shp") #study area shapefile
+BC <- st_read("BC.shp") #study area shapefile
 
 # Transform the CRS from EPSG:3347 to EPSG:3005
 prov_polygon <- st_transform(BC, crs = 3005)
@@ -324,6 +324,103 @@ ggsave("Clipped_IDW_Interpolation_Map.png", width = 10, height = 8, dpi = 300)
 ![Clipped_IDW_Interpolation_Map](https://github.com/user-attachments/assets/06d0451b-e8af-4af5-872e-53115e7048bb)
 
 ### Determinging if Temperature Explains Wildfires 
+In order to make conclusions about whether temperature explains wildfires in BC, we can look at Ordinary Least Squares Regression (OLS), Moran’s I Statistic, and Geographically Weighted Regression (GWR). To begin, we will want to turn our fire points into density data to map and then combine our climate IDW and fire density.
+
+First, let’s see at how we can visualize our fire density:
+```
+#layers should already be loaded in
+# Ensure bbox2 is valid and formatted correctly
+bbox2 <- st_bbox(prov_polygon)
+
+raster_res <- 50000  # This resolution in 50000 meters 
+raster_template <- raster(extent(bbox2), res = c(raster_res, raster_res))
+
+# Estimate density using kernel density estimate
+density_raster <- raster::rasterize(st_as_sf(final_fire_data), raster_template, fun = "count", field = 1)
+
+# Ensure all NAs are turned to zeros in the raster
+density_raster[is.na(density_raster)] <- 0
+
+# Convert the raster to a data frame and replace any potential NAs with zeros
+density_df <- as.data.frame(density_raster, xy = TRUE)
+density_df[is.na(density_df)] <- 0  # Replace NAs in the data frame with zeros
+
+# Step to rename the 'layer' column to 'fires' if applicable
+colnames(density_df)[colnames(density_df) == "layer"] <- "fires"
+
+# Convert to a spatial points data frame using sf (if needed later)
+density_sf <- st_as_sf(density_df, coords = c("x", "y"), crs = st_crs(prov_polygon))
+
+# Plotting the density map with the polygon boundary
+ggplot() +
+  geom_raster(data = density_df, aes(x = x, y = y, fill = fires)) +  # Use 'fires' from the data frame
+  geom_sf(data = prov_polygon, fill = NA, color = "black") + # Boundary polygon
+  scale_fill_viridis_c(option = "plasma") +  # Using a color scale
+  theme_minimal() +
+  labs(title = "Density Map of Fire Points",
+       x = "Longitude",
+       y = "Latitude",
+       fill = "Density")
+
+# Convert the raster to a data frame
+density_df <- as.data.frame(density_raster, xy = TRUE)
+
+# Rename the 'layer' column to 'fires'
+colnames(density_df)[colnames(density_df) == "layer"] <- "fires"
+
+# Replace NA values with zeros
+density_df[is.na(density_df$fires), "fires"] <- 0
+
+# Convert to a spatial points data frame using sf
+density_sf <- st_as_sf(density_df, coords = c("x", "y"), crs = st_crs(prov_polygon))
+
+# Write to a shapefile
+st_write(density_sf, "density_points.shp", delete_dsn = TRUE)
+
+# Create a simple map
+ggplot() +
+  geom_sf(data = prov_polygon, fill = NA, color = "black") +  # Plot the boundary polygon
+  geom_sf(data = density_sf, aes(color = fires), size = 1) +  # Plot the density points with color mapping
+  scale_color_viridis_c(option = "plasma", name = "Density of Fires") +  # Color scale for density values
+  theme_minimal() +
+  labs(title = "Density of Fires within Boundary",
+       x = "Longitude",
+       y = "Latitude")
+```
+Now we can combine our climate and events data to create our final data output.
+```
+# Perform the spatial join
+joined_data <- st_join(idw_clipped, density_sf, join = st_intersects)
+
+# Select needed columns
+final_data <- joined_data[, c("var1.pred", "fires")]
+
+# Rename column
+final_data <- final_data %>%
+  rename(temperature = var1.pred)
+
+# Replace NA values in the fires column with 0
+final_data <- final_data %>%
+  mutate(fires = ifelse(is.na(fires), 0, fires))
+
+# Create the map
+ggplot(data = final_data) +
+  geom_sf(aes(fill = fires)) +
+  scale_fill_viridis_c(option = "C") +
+  theme_minimal() +
+  labs(title = "Temperature Map",
+       fill = "Temperature (°C)") +
+  theme(legend.position = "right")
+
+# Save final_data as a shapefile
+st_write(final_data, "final_data.shp", delete_dsn = TRUE)
+
+# Convert final_data to a data frame
+final_data_df <- st_drop_geometry(final_data)
+
+# Write as CSV
+write.csv(final_data_df, "final_data.csv", row.names = FALSE)
+```
 
 
 ## Discussion
@@ -331,5 +428,7 @@ ggsave("Clipped_IDW_Interpolation_Map.png", width = 10, height = 8, dpi = 300)
 
 ## References
 esri. (n.d.). How inverse distance weighted interpolation works. How inverse distance weighted interpolation works-ArcGIS Pro | Documentation. https://pro.arcgis.com/en/pro-app/latest/help/analysis/geostatistical-analyst/how-inverse-distance-weighted-interpolation-works.htm 
+
 Metahni, S., Coudert, L., Gloaguen, E., Guemiza, K., Mercier, G., & Blais, J.-F. (2019). Comparison of different interpolation methods and sequential gaussian simulation to estimate volumes of soil contaminated by as, CR, Cu, PCP and dioxins/furans. Environmental Pollution, 252, 409–419. https://doi.org/10.1016/j.envpol.2019.05.122 
+
 Tobler, W. R. (1970). A computer movie simulating urban growth in the Detroit Region. Economic Geography, 46, 234. https://doi.org/10.2307/143141
