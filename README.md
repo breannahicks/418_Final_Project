@@ -214,15 +214,122 @@ final_fire_data <- st_intersection(subset_fire_data, prov_polygon)
 na_rows <- final_fire_data[!complete.cases(final_fire_data), ]
 ```
 ### Examining Wildfire Descriptive Satistics
+It’s important to be able to have some general statements that we can use to describe our climate driven event. We can gather these by performing descriptive and spatial descriptive statistics in our cleaned fire data. Here, we will be looking at the mean, median, and mean centre of our dataset.
+```
+#Descriptive stats on fire data: mean and median
+mean_fire_size <- mean(final_fire_data$SIZE_HA)
+median_fire_size <- median(final_fire_data$SIZE_HA) #most frequent fire size
+
+#Spatial descriptive stats on fire data: mean center
+# Calculate the mean center (centroid) of the final fire data
+coords <- st_coordinates(final_fire_data)
+mean_coords <- colMeans(coords)
+
+# Create a point representing the mean center
+mean_center <- st_sfc(st_point(c(mean_coords[1], mean_coords[2])), crs = st_crs(final_fire_data))
+
+# Plot the fire data and add the mean center
+ggplot() +
+  # Plot the BC boundary
+  geom_sf(data = prov_polygon, fill = "lightblue", color = "black") +
+  
+  # Plot the clipped fire data points
+  geom_sf(data = final_fire_data, color = "red", size = 1, alpha = 0.5) +
+  
+  # Add the mean center (as a large blue point)
+  geom_sf(data = mean_center, color = "blue", size = 3, shape = 21, fill = "yellow") +
+  
+  # Add title and labels
+  labs(title = "Fire Data in BC 2004-2024 with Mean Center",
+       subtitle = "(Mean center of fire points in BC)") +
+  theme_minimal()
+```
+
 
 
 ### Evaluating Spatial Distribution of Wildfires 
 
 
 ### Creating a Temperature Surface
+Since our climate data is currently in point form across the province, we want to create a temperature surface in order to carry on with our analysis. We can do this by performing Inverse Distance Weighting (IDW). This local technique uses the data at each point to estimate values for the areas without point data (esri, n.d.). This is done by utilizing Tobler’s Law of geography which states that “Everything is related to everything else, but near things are more related than distant things” (Tobler, 1970). Therefore, IDW estimates unknown values by looking at nearby points in a ‘neighbourhood’ and calculating the most likely/appropriate value.
 
+IDW uses the following formula:
+
+$$
+\hat{Z}(S_0) = \frac{\sum_{i=1}^{n} \frac{Z(S_i)}{d(S_i, S_0)}}{\sum_{i=1}^{n} \frac{1}{d(S_i, S_0)}}
+$$
+
+
+Where S0 represents the location you want to predict the value for, Si is your known value at location Si, d is the distance between S0 and Si, and n is the number of nearby points/neighbours (Metahni et al., 2019). Luckily, R will calculate all of these values for us using the following code chunk:
+
+```
+#Create a grid for the interpolation. Adjust the extent and resolution of the grid according to your needs
+bbox <- st_bbox(prov_polygon)
+grid <- st_make_grid(st_as_sfc(bbox), cellsize = c(50000, 50000))  # Adjust the cell size
+
+#Interpolate using IDW
+idw_result <- gstat::idw(MAX_TEMP ~ 1, 
+                         locations = final_climate_data, 
+                         newdata = st_as_sf(grid), 
+                         idp = 2)
+
+#Convert idw_result to an sf object
+idw_sf <- st_as_sf(idw_result)
+
+#Extract coordinates 
+coordinates <- st_coordinates(idw_sf)
+
+#Plot the results using geom_sf() for better handling of sf objects
+ggplot(data = idw_sf) +
+  geom_sf(aes(fill = var1.pred), color = NA) +
+  scale_fill_viridis_c(name = "Temperature(°C)", option = "D", direction = -1) +  # Customizing the color palette
+  labs(title = "IDW Interpolation of Temperature", x = "Longitude", y = "Latitude") +
+  theme_minimal() +
+  theme(legend.position = "right")
+
+#Save the result to a shapefile if needed
+st_write(idw_sf, "IDW_Result.shp", driver = "ESRI Shapefile", delete_dsn = TRUE)
+
+# Verify the structure of the polygon shapefile
+print(head(prov_polygon))
+# Check the CRS of both objects
+crs_idw <- st_crs(idw_sf)  # CRS of IDW result
+crs_polygon <- st_crs(prov_polygon)  # CRS of the polygon shapefile
+
+# Now attempt the intersection again
+idw_clipped <- st_intersection(idw_sf, prov_polygon)
+
+# Check the results of clipping
+print(st_geometry(idw_clipped))  # Check geometry to ensure it's clipped correctly
+
+# Create the map of the clipped results with a white background
+ggplot(data = idw_clipped) +
+  geom_sf(aes(fill = var1.pred), color = NA) +  # Fill based on predicted temperature values
+  scale_fill_viridis_c(option = "D") +  # Use viridis color scale for better readability
+  labs(title = "Clipped IDW Interpolation of Temperature",
+       fill = "Temperature (°C)",  # Change label as appropriate
+       x = "Longitude", 
+       y = "Latitude") +
+  theme_minimal() +  # Use a minimal theme
+  theme(
+    legend.position = "right",  # Position the legend on the right
+    panel.background = element_rect(fill = "white", color = NA),  # White background for the panel
+    plot.background = element_rect(fill = "white", color = NA),   # White background for the whole plot
+  )
+
+#Save the map as an image file (optional)
+ggsave("Clipped_IDW_Interpolation_Map.png", width = 10, height = 8, dpi = 300)
+```
+
+![Clipped_IDW_Interpolation_Map](https://github.com/user-attachments/assets/06d0451b-e8af-4af5-872e-53115e7048bb)
 
 ### Determinging if Temperature Explains Wildfires 
 
 
 ## Discussion
+
+
+## References
+esri. (n.d.). How inverse distance weighted interpolation works. How inverse distance weighted interpolation works-ArcGIS Pro | Documentation. https://pro.arcgis.com/en/pro-app/latest/help/analysis/geostatistical-analyst/how-inverse-distance-weighted-interpolation-works.htm 
+Metahni, S., Coudert, L., Gloaguen, E., Guemiza, K., Mercier, G., & Blais, J.-F. (2019). Comparison of different interpolation methods and sequential gaussian simulation to estimate volumes of soil contaminated by as, CR, Cu, PCP and dioxins/furans. Environmental Pollution, 252, 409–419. https://doi.org/10.1016/j.envpol.2019.05.122 
+Tobler, W. R. (1970). A computer movie simulating urban growth in the Detroit Region. Economic Geography, 46, 234. https://doi.org/10.2307/143141
