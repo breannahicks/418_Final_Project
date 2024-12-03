@@ -487,6 +487,8 @@ As you can see, my clipping boundary contains district lines. This caused some d
 
 ![OLS](https://github.com/user-attachments/assets/3360d796-9d51-42e6-8ced-c5ca47930273)
 
+Figure 8. Map of Residuals from OLS Regression
+
 results paragraph
 
 Lastly, we can run our GWR. This model will also examine the correlation between our independent variable (Temperature) and our dependent variable (Wildfires), however, it will model it with more sensitivity to local variability.
