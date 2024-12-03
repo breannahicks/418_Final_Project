@@ -1,7 +1,7 @@
-# 418_Final_Project
+# Spatial Analysis of Wildfires and Temperature in British Columbia
 
 ## 1.0 Introduction
-
+The number of wildfires in British Columbia have been rapidly increasing with more area burned from 2017–2023 than the previous 58 years (1959–2016) (Daniels et al., 2024). Although there are many drivers for the different types of fires that burn across the province, one very important one to focus on is rising temperatures. This is because “increases in maximum temperatures and concurrent decreases in relative humidity cause vapour pressure deficits” (Daniels et al., 2024, pp. 7). This can cause the areas at high fire risk (forests) to dry out and be more susceptible to more intense and frequent wildfires (Flannigan et al., 2016). Starting this kind of positive feedback loop can be extremely difficult to halt and reverse. Therefore it is crucial to ask the question: Do daily maximum temperatures between June and August (fire season) in the last 20 years (2004–2024) significantly correlate with the number of wildfires in British Columbia? In this tutorial, we will perform various statistical tests in order to answer this question.
 
 ## 2.0 Study Site
 For this study we will be examining wildfires in British Columbia (BC), Canada. This is because “British Columbia has one of the highest proportions of land covered with forests (57%) among all jurisdictions” (Gilani & Innes, 2020, pp. 1). Additionally, 41% of British Columbia’s forests are classified as old growth which makes them even more important to protect (Gilani & Innes, 2020). The mean fire size in BC from 2004-2024 was 0.01 ha and the median fire size was 190.13 ha (See section 4.2 of this tutorial). BC’s fire statistics are also important to examine because of the diversity of the province’s biogeoclimatic zones (Figure 1). Since BC has many different zones, conservation and mitigation may look different when examined on a more local level. 
@@ -489,17 +489,135 @@ As you can see, my clipping boundary contains district lines. This caused some d
 
 Figure 8. Map of Residuals from OLS Regression
 
-results paragraph
+This map shows that our independent variable (temperature) is doing a worse job explaining our dependent variable (wildfires) in the southern Parts of the province. This is most likely because the data in that region represents more frequent fires and higher temperature. This means that the points in that region would be placed further away from our regression line on a graph, therefore, having larger residuals.
 
-Lastly, we can run our GWR. This model will also examine the correlation between our independent variable (Temperature) and our dependent variable (Wildfires), however, it will model it with more sensitivity to local variability.
+Now we can look at our Global Morans I Statistic using a queen's neighbourhood. This is a global statistic because it uses all the mean values of the whole study area to calculate a single value (I) for evaluation. We will use the following equation to achieve this:
 
+$$
+I = \frac{\sum_{i=1}^n\sum_{j=1}^nW_{i,j}(x_i - \bar{x})(x_j - \bar{x})}{(\sum_{i=1}^n\sum_{j=1}^nW_{i,j})\sum_{i=1}^n(x_i - \bar{x})^2}
+$$
+
+In the numerator of this equation is comparing the point of interest $(i)$ with its neighbors $(j)$ depending on our chosen weighing matrix $(W_{i,j})$. Similar to many other statistical tests, the denominator in this equation serves to standardize the values. Once we produce our output statistic using this equation, it is important to understand how to interpret it. Values of I that are high (relatively) exhibit positive spatial autocorrelation and values of I that are low (relatively) exhibit negative spatial autocorrelation.
+
+```
+#Fire Neighbours - Queens weight
+fire.nb <- poly2nb(final_data_sf)
+# Use st_coordinates to get the coordinates
+fire.net <- nb2lines(fire.nb, coords=st_coordinates(st_centroid(final_data_sf)))
+crs(fire.net) <- crs(final_data_sf) 
+
+#Create Fire weights matrix
+fire.lw <- nb2listw(fire.nb, zero.policy = TRUE, style = "W")
+
+head(fire.lw[["weights"]])[c(1:3)]
+
+#Calculate Global Moran's I for fires
+miFires <- moran.test(final_data_sf$`fires`, fire.lw, zero.policy = TRUE)
+#Extract Global Moran's I results for fire
+mIFires <- miFires$estimate[[1]]
+eIFires <- miFires$estimate[[2]]
+varFires <- miFires$estimate[[3]]
+```
+
+The results of this statistic was I = 0.29. This indicates a moderate positive spatial autocorrelation of fires.
+
+
+Lastly, we can run our GWR. This model will also examine the correlation between our independent variable (Temperature) and our dependent variable (Wildfires), however, it will model it with more sensitivity to local variability. We will be mapping the R2 value which will show either temperature explaining a lot about wildfires (high R2) or temperature explaining little about wildfires (low R2).
+
+```
+# Read the shapefile (with residuals included)
+final_data_sf <- st_read("final_data.shp")
+
+# Preview the data to check variable names and content
+print(head(final_data_sf))
+print(colnames(final_data_sf))
+
+# Convert the sf object to Spatial object
+final_data_sp <- as_Spatial(final_data_sf)
+
+# Create neighborhood structure
+neighbors <- poly2nb(final_data_sp, queen = TRUE)
+
+# Check neighbors for any issues
+print(summary(neighbors))
+
+# Check for any empty neighbors
+if (any(sapply(neighbors, length) == 0)) {
+  warning("Some polygons have no neighbors. This may cause issues for GWR.")
+}
+
+# Prepare the dependent and independent variables
+dependent_var <- final_data_sp@data$fires
+independent_vars <- final_data_sp@data$temprtr
+
+# Check if both variables are numeric
+if (!is.numeric(dependent_var) || !is.numeric(independent_vars)) {
+  stop("Dependent and independent variables must be numeric.")
+}
+
+# Use gwr.sel to automatically select the optimal bandwidth
+optimal_bandwidth <- gwr.sel(dependent_var ~ independent_vars, data = final_data_sp)
+print(paste("Optimal Bandwidth selected: ", optimal_bandwidth))  # Output the selected bandwidth
+
+# Run GWR with the optimal bandwidth selected by gwr.sel
+gwr_model_optimal <- gwr(dependent_var ~ independent_vars,
+                         data = final_data_sp,
+                         bandwidth = optimal_bandwidth,
+                         se.fit = TRUE)
+
+# Validate that the model ran successfully
+if (is.null(gwr_model_optimal)) {
+  stop("The GWR model did not return any results.")
+}
+
+if (is.null(gwr_model_optimal$SDF)) {
+  stop("The GWR model SDF is NULL, indicating it might not have calculated properly.")
+}
+
+# Print GWR summary
+print(summary(gwr_model_optimal))
+
+# Extract coefficients and create a dataframe for visualization
+gwr_results_optimal <- as.data.frame(gwr_model_optimal$SDF)
+
+# Extract coordinates from the original spatial data
+coordinates_optimal <- st_coordinates(st_centroid(final_data_sf))  # Get coordinates from the original data
+
+# Combine the GWR results with the coordinates
+gwr_results_optimal <- cbind(gwr_results_optimal, coordinates_optimal)
+
+# Convert to an sf object for visualization
+gwr_output_sf_optimal <- st_as_sf(gwr_results_optimal, coords = c("X", "Y"), crs = st_crs(final_data_sf))
+
+# Plotting GWR coefficients with the optimal bandwidth
+ggplot(data = gwr_output_sf_optimal) +
+  geom_sf(aes(colour = localR2)) +
+  scale_fill_viridis_c(option = "C") +
+  labs(title = "GWR Coefficients with Optimal Bandwidth",
+       fill = "localR2") +
+  theme_minimal()
+
+# Optional: Save the plot
+ggsave("gwr_coefficients_optimal_bandwidth.png", width = 10, height = 8, dpi = 300)
+```
+
+![GWR_Optimal_Bandwidth](https://github.com/user-attachments/assets/f42d61b7-1e01-41dc-9d39-a6210e4c0490)
+
+Figure 9. GWR R2 Mapped with Optimal Bandwidth
+
+This result indicates moderate to low model performance in most of the province. The model shows a greater performance in northern parts of BC.
 
 ## 5.0 Discussion
-
+In this study we have examined various different methods to spatially analyze if daily maximum temperatures between June and August (fire season) in the last 20 years (2004–2024) significantly correlate with the number of wildfires in British Columbia. This study found that temperature has a moderate correlation to wildfire in BC, 2004-2024. This finding is based on the moderate positive spatial autocorrelation value of the Global Moran’s I statistic along with the moderate to low results of our GWR output. In all of our results we can see that temperature can somewhat explain wildfire in BC but not with confidence. One reason for this was because of the timeline chosen. Since this study used data over 20 years, the wildfire points were oversaturated across the province (Figure 4), therefore, making our results less informative. However, using such a long timeline makes the regions with no fires of great relevance. We can see in our models that low temperatures can explain low wildfires well in the northern parts of the province (Figure 9). That said, I recommend that future studies utilize a shorter timeline to be able to see how warmer temperatures may be influencing the distribution of wildfires in BC.
 
 ## 6.0 References
 esri. (n.d.). How inverse distance weighted interpolation works. How inverse distance weighted interpolation works-ArcGIS Pro | Documentation. https://pro.arcgis.com/en/pro-app/latest/help/analysis/geostatistical-analyst/how-inverse-distance-weighted-interpolation-works.htm 
 
+Flannigan, M. D., Wotton, B. M., Marshall, G. A., De Groot, W. J., Johnston, J., Jurko, N., Cantin, A. S. (2016). Fuel moisture sensitivity to temperature and precipitation: Climate change implications. Climatic Change, 134(1-2), 59-71. 10.1007/s10584-015-1521-0
+
+Gilani, H. R., & Innes, J. L. (2020). The state of British Columbia’s Forests: A global comparison. Forests, 11(3), 316. https://doi.org/10.3390/f11030316 
+
 Metahni, S., Coudert, L., Gloaguen, E., Guemiza, K., Mercier, G., & Blais, J.-F. (2019). Comparison of different interpolation methods and sequential gaussian simulation to estimate volumes of soil contaminated by as, CR, Cu, PCP and dioxins/furans. Environmental Pollution, 252, 409–419. https://doi.org/10.1016/j.envpol.2019.05.122 
 
 Tobler, W. R. (1970). A computer movie simulating urban growth in the Detroit Region. Economic Geography, 46, 234. https://doi.org/10.2307/143141
+
