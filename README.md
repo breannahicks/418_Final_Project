@@ -1,13 +1,18 @@
 # 418_Final_Project
 
-## Introduction
+## 1.0 Introduction
 
-## Data
 
-## Methods
+## 2.0 Study Site
+For this study we will be examining wildfires in British Columbia (BC), Canada. This is because “British Columbia has one of the highest proportions of land covered with forests (57%) among all jurisdictions” (Gilani & Innes, 2020, pp. 1). Additionally, 41% of British Columbia’s forests are classified as old growth which makes them even more important to protect (Gilani & Innes, 2020). The mean fire size in BC from 2004-2024 was 0.01 ha and the median fire size was 190.13 ha (See section 4.2 of this tutorial). BC’s fire statistics are also important to examine because of the diversity of the province’s biogeoclimatic zones (Figure 1). Since BC has many different zones, conservation and mitigation may look different when examined on a more local level. 
 
-### Data Cleaning
-The first step is to clean up any data we have collected to be ready for our analysis. We will begin by installing the necessary packages (if needed), loading them in, and setting our working directory. Our working directory is where all of our files are being stored on our device and setting it will tell R where to look for them when we call on them. A package only needs to be installed once on your device, however, packages must be opened every time you open your R project.
+![biogeo](https://github.com/user-attachments/assets/047fcd91-34cf-452e-bbaf-75c5ea88a5ed)
+Figure 1. Biogeoclimactic zones of British Columbia
+
+## 3.0 Data
+The data used in this study was 1) Climate data collected from the Pacific Climate Impacts Consortium (PCIC) and 2) Wildfire data collected from the BC Data Catalogue. The data I collected was the daily maximum temperature from 2004-2024 in British Columbia. The data you use can be anything that makes sense for your study as long as the data has relatively good coverage across your study area. The data from PCIC gives us a folder (in this case called “BCH”) which contains many .csv files with data from each weather station point. We want to look in these .csv files, extract the data we want from each one, combine it with our metadata (also obtained from PCIC), and compile it all into one excel file to use for our analysis. We will do this by creating a ‘for loop’ in R.
+
+We will begin by installing the necessary packages (if needed), loading them in, and setting our working directory. Our working directory is where all of our files are being stored on our device and setting it will tell R where to look for them when we call on them. A package only needs to be installed once on your device, however, packages must be opened every time you open your R project.
 ```
 #install packers if not already done so
 install.packages(“spatstat”)
@@ -38,7 +43,7 @@ dir <- "C:/Users/blorr/OneDrive/Documents/GEOG418/Hicks_GEOG418_Final"
 
 setwd(dir)
 ```
-Now we can start working with our files in our working directory. We will start with our climate data collected from the Pacific Climate Impacts Consortium (PCIC). The data I collected was the daily maximum temperature from 2004-2024 in British Columbia. The data you use can be anything that makes sense for your study as long as the data has relatively good coverage across your study area. The data from PCIC gives us a folder (in this case called “BCH”) which contains many .csv files with data from each weather station point. We want look in these .csv files, extract the data we want from each one, combine it with our metadata (also obtained from PCIC), and compile it all into one excel file to use for our analysis. We will do this by creating a ‘for loop’ in R.
+Now we can run our for loop:
 ```
 #Data cleaning for BCH Data from PCIC
 # Create an empty data frame with specified columns. You will use this to write your weather station to when you want to combine your climate variables with the coordinates contained in the metadata.
@@ -186,7 +191,9 @@ Here’s how mine turned out:
 
 ![Climate Data Points Map](https://github.com/user-attachments/assets/5b33a1ca-148d-416a-aec6-d089c11a2278)
 
-Now we can move into cleaning up our fire data which should be a bit quicker. Here, we are adjusting the format of our data, clipping it to our dates and boundary, and removing any NA values that may cause errors in calculations.
+Figure 2. Map of Maximum Avergave Temperature Climate Data Points in British Columbia 2004-2024 June-August
+
+The wildfire data I collected from the BC Data Catalogue contained a shapefile of wildfire point data from 1950-2024. The following code will clean up this data for the purposes of this study. Here, we are adjusting the format of our data, clipping it to our dates and boundary, and removing any NA values that may cause errors in calculations.
 ```
 # Open BC boundary for clipping
 clippingbound <- st_read("CNCNSSDVS1_polygon.shp")
@@ -215,8 +222,11 @@ final_fire_data <- st_intersection(subset_fire_data, clippingbound)
 
 # Save as shapefile
 st_write(final_fire_data, "final_fire_data.shp")
+
 ```
-### Examining Wildfire Descriptive Satistics
+### 4.0 Methods
+
+### 4.1 Examining Wildfire Descriptive Satistics
 It’s important to be able to have some general statements that we can use to describe our climate driven event. We can gather these by performing descriptive and spatial descriptive statistics in our cleaned fire data. Here, we will be looking at the mean, median, and mean centre of our dataset.
 ```
 #Descriptive stats on fire data: mean and median
@@ -258,14 +268,16 @@ ggplot() +
 ```
 ![image](https://github.com/user-attachments/assets/c927c5c1-799f-4dae-9634-3039d970d0f5)
 
+Figure 3. Descriptive Statistics for Wildfire Size (ha), British Columbia, 2004-2024
+
 ![mean center](https://github.com/user-attachments/assets/2c9cb8e8-4dff-4450-8b08-893bac330c43)
 
+Figure 4. Mean centre of Fire Points in British Columbia, 2004-2024
+
+### 4.2 Evaluating Spatial Distribution of Wildfires 
 
 
-### Evaluating Spatial Distribution of Wildfires 
-
-
-### Creating a Temperature Surface
+### 4.3 Creating a Temperature Surface
 Since our climate data is currently in point form across the province, we want to create a temperature surface in order to carry on with our analysis. We can do this by performing Inverse Distance Weighting (IDW). This local technique uses the data at each point to estimate values for the areas without point data (esri, n.d.). This is done by utilizing Tobler’s Law of geography which states that “Everything is related to everything else, but near things are more related than distant things” (Tobler, 1970). Therefore, IDW estimates unknown values by looking at nearby points in a ‘neighbourhood’ and calculating the most likely/appropriate value.
 
 IDW uses the following formula:
@@ -338,10 +350,12 @@ ggsave("Clipped_IDW_Interpolation_Map.png", width = 10, height = 8, dpi = 300)
 
 ![Clipped_IDW_Interpolation_Map](https://github.com/user-attachments/assets/06d0451b-e8af-4af5-872e-53115e7048bb)
 
-### Determinging if Temperature Explains Wildfires 
+Figure 5. IDW Map of Average Maximum Temperature in British Columbia, 2004-2024
+
+### 4.4 Determinging if Temperature Explains Wildfires 
 In order to make conclusions about whether temperature explains wildfires in BC, we can look at Ordinary Least Squares Regression (OLS), Moran’s I Statistic, and Geographically Weighted Regression (GWR). To begin, we will want to turn our fire points into density data to map and then combine our climate IDW and fire density.
 
-First, let’s see at how we can visualize our fire density:
+First, let’s see at how we can visualize our fire density by creating 2 maps:
 ```
 #layers should already be loaded in
 # Ensure bbox2 is valid and formatted correctly
@@ -402,6 +416,15 @@ ggplot() +
        x = "Longitude",
        y = "Latitude")
 ```
+
+![density_fires](https://github.com/user-attachments/assets/047362ca-d84d-4df0-b4d0-cd8b1e23d750)
+
+Figure 6. Density Map of Wildfires in British Columbia, 2004-2024 (raster)
+
+![density_fires_points](https://github.com/user-attachments/assets/e4c6ff11-dad3-4b6f-a424-a9237ddf5eed)
+
+Figure 7. Density Map of Wildfires in British Columbia, 2004-2024 (points)
+
 Now we can combine our climate and events data to create our final data output.
 ```
 # Perform the spatial join
@@ -418,15 +441,6 @@ final_data <- final_data %>%
 final_data <- final_data %>%
   mutate(fires = ifelse(is.na(fires), 0, fires))
 
-# Create the map
-ggplot(data = final_data) +
-  geom_sf(aes(fill = fires)) +
-  scale_fill_viridis_c(option = "C") +
-  theme_minimal() +
-  labs(title = "Temperature Map",
-       fill = "Temperature (°C)") +
-  theme(legend.position = "right")
-
 # Save final_data as a shapefile
 st_write(final_data, "final_data.shp", delete_dsn = TRUE)
 
@@ -436,21 +450,52 @@ final_data_df <- st_drop_geometry(final_data)
 # Write as CSV
 write.csv(final_data_df, "final_data.csv", row.names = FALSE)
 ```
-Now we can look at our OLS to understand the correlation of our two variables. Mapping out OLS will show us where temperature is explaining wildfires versus where it is not on the model. We will do this by mapping the residuals. A larger residual means that a given point is further away from our regression line and therefore, our independent variable (temperature) doesn't explain much about our dependent variable (wildfires). 
+Now we can look at our OLS to understand the global correlation of our two variables. Mapping out OLS will show us where temperature is explaining wildfires versus where it is not on the model. We will do this by mapping the residuals. A larger residual means that a given point is further away from our regression line and therefore, our independent variable (temperature) doesn't explain much about our dependent variable (wildfires). 
 
 Running the following code will show us a map of our residuals:
 
 ```
-code
+# Read the shapefile
+final_data_sf <- st_read("final_data.shp")
+
+# Fit the OLS regression model on the entire spatial data
+# Use "temprtr" instead of "temperature"
+ols_model <- lm(fires ~ temprtr, data = final_data_sf)
+
+# Add residuals to the original spatial data frame
+final_data_sf$residuals <- resid(ols_model)
+
+# Inspect the updated spatial object to verify residuals are added
+print(head(final_data_sf))
+
+# (Optional) Save the updated shapefile with residuals
+st_write(final_data_sf, "final_data_with_residuals.shp", delete_dsn = TRUE)
+
+# Create a map of residuals from the OLS regression
+ggplot(data = final_data_sf) +
+  geom_sf(aes(fill = residuals)) + # Map the residuals to fill color
+  scale_fill_viridis_c(option = "C", name = "Residuals") + # Use a color scale
+  theme_minimal() +
+  labs(title = "Map of Residuals from OLS Regression",
+       fill = "Residuals") +
+  theme(legend.position = "right")
+
+# Optional: Save the plot if desired
+ggsave("residuals_map.png", width = 10, height = 8, dpi = 300)
 ```
-Result
+As you can see, my clipping boundary contains district lines. This caused some discrepancies in the map but the general trend can still be observed.
+
+![OLS](https://github.com/user-attachments/assets/3360d796-9d51-42e6-8ced-c5ca47930273)
+
+results paragraph
+
+Lastly, we can run our GWR. This model will also examine the correlation between our independent variable (Temperature) and our dependent variable (Wildfires), however, it will model it with more sensitivity to local variability.
 
 
+## 5.0 Discussion
 
-## Discussion
 
-
-## References
+## 6.0 References
 esri. (n.d.). How inverse distance weighted interpolation works. How inverse distance weighted interpolation works-ArcGIS Pro | Documentation. https://pro.arcgis.com/en/pro-app/latest/help/analysis/geostatistical-analyst/how-inverse-distance-weighted-interpolation-works.htm 
 
 Metahni, S., Coudert, L., Gloaguen, E., Guemiza, K., Mercier, G., & Blais, J.-F. (2019). Comparison of different interpolation methods and sequential gaussian simulation to estimate volumes of soil contaminated by as, CR, Cu, PCP and dioxins/furans. Environmental Pollution, 252, 409–419. https://doi.org/10.1016/j.envpol.2019.05.122 
