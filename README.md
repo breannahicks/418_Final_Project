@@ -274,10 +274,7 @@ Figure 3. Descriptive Statistics for Wildfire Size (ha), British Columbia, 2004-
 
 Figure 4. Mean centre of Fire Points in British Columbia, 2004-2024
 
-### 4.2 Evaluating Spatial Distribution of Wildfires 
-
-
-### 4.3 Creating a Temperature Surface
+### 4.2 Creating a Temperature Surface
 Since our climate data is currently in point form across the province, we want to create a temperature surface in order to carry on with our analysis. We can do this by performing Inverse Distance Weighting (IDW). This local technique uses the data at each point to estimate values for the areas without point data (esri, n.d.). This is done by utilizing Tobler’s Law of geography which states that “Everything is related to everything else, but near things are more related than distant things” (Tobler, 1970). Therefore, IDW estimates unknown values by looking at nearby points in a ‘neighbourhood’ and calculating the most likely/appropriate value.
 
 IDW uses the following formula:
@@ -352,10 +349,10 @@ ggsave("Clipped_IDW_Interpolation_Map.png", width = 10, height = 8, dpi = 300)
 
 Figure 5. IDW Map of Average Maximum Temperature in British Columbia, 2004-2024
 
-### 4.4 Determinging if Temperature Explains Wildfires 
+### 4.3 Determinging if Temperature Explains Wildfires 
 In order to make conclusions about whether temperature explains wildfires in BC, we can look at Ordinary Least Squares Regression (OLS), Moran’s I Statistic, and Geographically Weighted Regression (GWR). To begin, we will want to turn our fire points into density data to map and then combine our climate IDW and fire density.
 
-First, let’s see at how we can visualize our fire density by creating 2 maps:
+First, let’s see at how we can create and visualize our fire density by creating 2 maps:
 ```
 #layers should already be loaded in
 # Ensure bbox2 is valid and formatted correctly
@@ -489,15 +486,15 @@ As you can see, my clipping boundary contains district lines. This caused some d
 
 Figure 8. Map of Residuals from OLS Regression
 
-This map shows that our independent variable (temperature) is doing a worse job explaining our dependent variable (wildfires) in the southern Parts of the province. This is most likely because the data in that region represents more frequent fires and higher temperature. This means that the points in that region would be placed further away from our regression line on a graph, therefore, having larger residuals.
+This map shows that our independent variable (temperature) is doing a worse job explaining our dependent variable (wildfires) in the southern parts of the province. This is most likely because the data in that region represents more frequent fires and higher temperature. This means that the points in that region would be placed further away from our regression line on a graph, therefore, having larger residuals.
 
-Now we can look at our Global Morans I Statistic using a queen's neighbourhood. This is a global statistic because it uses all the mean values of the whole study area to calculate a single value (I) for evaluation. We will use the following equation to achieve this:
+Now we can look at our Global Moran's I Statistic using a queen's neighbourhood. This is a global statistic because it uses all the mean values of the whole study area to calculate a single value (I) for evaluation. We will use the following equation to achieve this:
 
 $$
 I = \frac{\sum_{i=1}^n\sum_{j=1}^nW_{i,j}(x_i - \bar{x})(x_j - \bar{x})}{(\sum_{i=1}^n\sum_{j=1}^nW_{i,j})\sum_{i=1}^n(x_i - \bar{x})^2}
 $$
 
-In the numerator of this equation is comparing the point of interest $(i)$ with its neighbors $(j)$ depending on our chosen weighing matrix $(W_{i,j})$. Similar to many other statistical tests, the denominator in this equation serves to standardize the values. Once we produce our output statistic using this equation, it is important to understand how to interpret it. Values of I that are high (relatively) exhibit positive spatial autocorrelation and values of I that are low (relatively) exhibit negative spatial autocorrelation.
+The numerator of this equation is comparing the point of interest $(i)$ with its neighbors $(j)$ depending on our chosen weighing matrix $(W_{i,j})$. Similar to many other statistical tests, the denominator in this equation serves to standardize the values. Once we produce our output statistic using this equation, it is important to understand how to interpret it. Values of I that are high (relatively) exhibit positive spatial autocorrelation and values of I that are low (relatively) exhibit negative spatial autocorrelation.
 
 ```
 #Fire Neighbours - Queens weight
